@@ -5,20 +5,50 @@ const mongoose = require('mongoose');
 const app = express();
 app.use(express.json());
 
-// 1. Kết nối tới MongoDB Atlas
-const MONGO_URI = process.env.MONGO_URI;
+// 1. Tối ưu kết nối MongoDB Atlas cho Serverless Function
+let isConnected = false;
 
-mongoose.connect(MONGO_URI)
-    .then(() => console.log('Đã kết nối thành công tới MongoDB Atlas!'))
-    .catch(err => console.error('Lỗi kết nối MongoDB:', err));
+const connectToDatabase = async () => {
+    if (isConnected) {
+        return;
+    }
 
-// 2. Định nghĩa Schema (Cấu trúc dữ liệu)
+    if (!process.env.MONGO_URI) {
+        throw new Error('MONGO_URI chưa được cấu hình trong biến môi trường!');
+    }
+
+    try {
+        const db = await mongoose.connect(process.env.MONGO_URI, {
+            bufferCommands: false, // Tắt buffering để phát hiện lỗi ngay nếu chưa kết nối
+        });
+        isConnected = db.connections[0].readyState === 1;
+        console.log('Đã kết nối thành công tới MongoDB Atlas!');
+    } catch (err) {
+        console.error('Lỗi kết nối MongoDB:', err);
+        throw err;
+    }
+};
+
+// Middleware đảm bảo luôn kết nối DB trước khi xử lý request
+app.use(async (req, res, next) => {
+    try {
+        await connectToDatabase();
+        next();
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: 'Không thể kết nối đến cơ sở dữ liệu: ' + error.message
+        });
+    }
+});
+
+// 2. Định nghĩa Schema & Model
 const textSchema = new mongoose.Schema({
     content: { type: String, required: true },
     createdAt: { type: Date, default: Date.now }
 });
 
-const TextModel = mongoose.model('TextLog', textSchema);
+const TextModel = mongoose.models.TextLog || mongoose.model('TextLog', textSchema);
 
 // 3. API Endpoint: POST /append (Lưu chuỗi vào Database)
 app.post('/append', async (req, res) => {
@@ -29,7 +59,6 @@ app.post('/append', async (req, res) => {
             return res.status(400).json({ success: false, error: 'Thiếu tham số "text"' });
         }
 
-        // Lưu bản ghi mới vào MongoDB
         const newLog = new TextModel({ content: text });
         await newLog.save();
 
@@ -46,7 +75,6 @@ app.post('/append', async (req, res) => {
 // 4. API Endpoint: GET /read (Đọc danh sách chuỗi đã lưu)
 app.get('/read', async (req, res) => {
     try {
-        // Lấy tất cả bản ghi, sắp xếp theo thời gian tạo mới nhất
         const logs = await TextModel.find().sort({ createdAt: -1 });
         res.json({ success: true, count: logs.length, data: logs });
     } catch (error) {
@@ -54,9 +82,13 @@ app.get('/read', async (req, res) => {
     }
 });
 
-const PORT = process.env.PORT || 3000;
+// 5. Chạy local dev server nếu không nằm trong môi trường Vercel (production)
+if (process.env.NODE_ENV !== 'production') {
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`Server running on http://localhost:${PORT}`);
+    });
+}
 
-// THÊM THAM SỐ '0.0.0.0' VÀO ĐÂY
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
-});
+// Export app để Vercel sử dụng làm Handler Function
+module.exports = app;

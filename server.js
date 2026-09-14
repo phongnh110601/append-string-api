@@ -82,6 +82,20 @@ app.get('/read', async (req, res) => {
     }
 });
 
+// 5. API Endpoint mới: DELETE /delete-all (Xóa tất cả dữ liệu)
+app.delete('/delete-all', async (req, res) => {
+    try {
+        const result = await DataModel.deleteMany({});
+        res.json({
+            success: true,
+            message: 'Đã xóa toàn bộ dữ liệu thành công!',
+            deletedCount: result.deletedCount
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Lỗi máy chủ: ' + error.message });
+    }
+});
+
 // 5. Chạy local dev server nếu không nằm trong môi trường Vercel (production)
 if (process.env.NODE_ENV !== 'production') {
     const PORT = process.env.PORT || 3000;

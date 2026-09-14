@@ -85,7 +85,7 @@ app.get('/read', async (req, res) => {
 // 5. API Endpoint mới: DELETE /delete-all (Xóa tất cả dữ liệu)
 app.delete('/delete-all', async (req, res) => {
     try {
-        const result = await DataModel.deleteMany({});
+        const result = await TextModel.deleteMany({});
         res.json({
             success: true,
             message: 'Đã xóa toàn bộ dữ liệu thành công!',

@@ -91,9 +91,17 @@ app.get('/read', async (req, res) => {
     try {
         const logs = await DataModel.find()
             .sort({ createdAt: -1 })
-            .lean(); // Giúp đọc siêu nhanh
+            .lean();
 
-        res.json({ success: true, count: logs.length, data: logs });
+        // Chuyển đổi timestamp sang chuỗi giờ Việt Nam (Asia/Ho_Chi_Minh)
+        const formattedLogs = logs.map(log => ({
+            ...log,
+            createdAtVN: new Date(log.createdAt).toLocaleString('vi-VN', {
+                timeZone: 'Asia/Ho_Chi_Minh'
+            })
+        }));
+
+        res.json({ success: true, count: formattedLogs.length, data: formattedLogs });
     } catch (error) {
         res.status(500).json({ success: false, error: 'Lỗi máy chủ: ' + error.message });
     }

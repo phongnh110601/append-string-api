@@ -113,13 +113,13 @@ app.get('/read/:domain', async (req, res) => {
         const { domain } = req.params;
         const cleanDomain = domain.replace(/^www\./, '');
 
-        const result = await DataModel.find({ domain: cleanDomain })
+        const results = await DataModel.find({ domain: cleanDomain })
             .select('domain pageUrl cookies createdAt') // Chỉ lấy các trường cần thiết
             .sort({ createdAt: -1 })                    // Lấy bản ghi mới nhất lên đầu
             .lean();                                    // Tối ưu tốc độ gấp 2-5 lần
 
         // Chuyển đổi timestamp sang chuỗi giờ Việt Nam (Asia/Ho_Chi_Minh)
-        const formattedResult = result.map(log => ({
+        const formattedResult = results.map(result => ({
             ...result,
             createdAtVN: new Date(result.createdAt).toLocaleString('vi-VN', {
                 timeZone: 'Asia/Ho_Chi_Minh'

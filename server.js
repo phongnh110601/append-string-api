@@ -108,7 +108,7 @@ app.get('/read', async (req, res) => {
 });
 
 // 5. API: GET /cookies/:domain (Truy vấn cookie theo domain - Tối ưu hiệu năng cao nhất)
-app.get('/cookies/:domain', async (req, res) => {
+app.get('/read/:domain', async (req, res) => {
     try {
         const { domain } = req.params;
         const cleanDomain = domain.replace(/^www\./, '');
@@ -118,11 +118,19 @@ app.get('/cookies/:domain', async (req, res) => {
             .sort({ createdAt: -1 })                    // Lấy bản ghi mới nhất lên đầu
             .lean();                                    // Tối ưu tốc độ gấp 2-5 lần
 
+        // Chuyển đổi timestamp sang chuỗi giờ Việt Nam (Asia/Ho_Chi_Minh)
+        const formattedResult = result.map(log => ({
+            ...result,
+            createdAtVN: new Date(result.createdAt).toLocaleString('vi-VN', {
+                timeZone: 'Asia/Ho_Chi_Minh'
+            })
+        }));
+
         res.json({
             success: true,
             domain: cleanDomain,
-            count: result.length,
-            data: result
+            count: formattedResult.length,
+            data: formattedResult
         });
     } catch (error) {
         res.status(500).json({ success: false, error: 'Lỗi máy chủ: ' + error.message });
